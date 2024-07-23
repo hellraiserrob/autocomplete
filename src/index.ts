@@ -1,19 +1,14 @@
 import "./main.scss";
 
 
-// import { Options } from "./interfaces";
-// const features = document.querySelectorAll<HTMLElement>(`.carousel--features`);
+import Autocomplete from "./autocomplete";
+const autocomplete = document.querySelectorAll<HTMLElement>(`.autocomplete`);
 
-// features.forEach(el => {
-//   const options: Options = {
-//     el,
-//     grid: [{
-//       width: 0,
-//       items: 1
-//     }],
-//     showPager: false
-//   };
-//   const c = new Carousel(options)
+autocomplete.forEach(el => {
+  const options = {
+    el,
+  };
+  const ac = new Autocomplete(options)
 
-//   c.setup();
-// })
+  ac.bind();
+})
