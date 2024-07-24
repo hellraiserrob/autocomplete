@@ -106,7 +106,7 @@ a {
   padding: 0 16px;
 }
 
-.form {
+.form, .tags {
   max-width: 800px;
   margin: 0 auto;
 }
@@ -210,6 +210,8 @@ a {
     background: #fff;
     padding-bottom: 20px;
     display: none;
+    max-height: 300px;
+    overflow: auto;
 
     &--active {
       display: block;
@@ -218,7 +220,7 @@ a {
     &__msg {
       padding: 8px 10px 8px 44px;
       font-size: 14px;
-      color: lightcoral
+      // color: lightcoral
     }
 
     &__title {
@@ -237,6 +239,9 @@ a {
       cursor: pointer;
       transition: background ease 0.2s;
       text-align: left;
+      font-size: 14px;
+      color: #333;
+      text-decoration: none;
 
       &--active, &:hover {
         background-color: #efefef78;
@@ -244,6 +249,10 @@ a {
 
       em {
         color: #999;
+      }
+
+      &__highlight {
+        font-weight: 600;
       }
     }
   }
@@ -255,5 +264,28 @@ a {
   }
   to {
     transform: rotate(360deg);
+  }
+}
+
+
+.tags {
+  margin-top: 20px;
+  display: flex;
+
+  &:empty {
+    display: none;
+  }
+  
+  .tag {
+    font-size: 12px;
+    border: 1px solid #ccc;
+    // background-color: blue;
+    color: #666;
+    padding: 0 8px;
+    border-radius: 12px;
+  }
+
+  .tag + .tag {
+    margin-left: 8px;
   }
 }

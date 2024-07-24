@@ -2,111 +2,72 @@
  * autocomplete
  */
 
+import debounce from "lodash/debounce";
+import get from "lodash/get";
 import keys from "./keys.ts";
-import { hide, show, empty, ancestor, getItem, setItem } from "./utils";
 
 const css = {
   input: "form-input__input",
-  hidden: "autocomplete__hidden",
   suggestions: "form-input__results",
   suggestionsActive: "form-input__results--active",
   link: "form-input__results__item",
   linkActive: "form-input__results__item--active",
-  highlight: "autocomplete__highlight",
-  empty: "autocomplete__empty",
-  error: "autocomplete__error",
+  highlight: "form-input__results__item__highlight",
+  empty: "form-input__results__msg",
+  error: "form-input__results__msg",
   loading: "form-input--loading",
   clear: "form-input__clear",
   clearActive: "form-input__clear--active",
-  title: "autocomplete__title",
+  title: "form-input__results__title",
 };
 
 export default class Autocomplete {
-  el: any;
+  el: HTMLElement;
   url: string;
   minimumLength: number;
   els: any;
-  labelKey: any;
-  idKey: any;
-  cache: any;
-  reorder: any;
-  disableFilter: any;
-  skipClearFocus: any;
-  selectedIndex: any;
-  savedInput: any;
-  isOpen: any;
-  isLoading: any;
-  isError: any;
-  xhr: any;
+  titleKey: string;
+  textKey: string;
+  
+  isOpen: boolean;
+  isLoading: boolean;
+  isError: boolean;
+  isEmpty: boolean;
+  
   results: any
+  total: number;
+  selectedIndex: number;
+  savedInput: string;
   labels: any
-  filteredResults: any;
-  cachedResults: any;
-  isEmpty: any;
-  currentSearch: any;
-  currentPrefix: any;
-  xhrCounter: any;
-  cachedId: any;
-  cachedLabel: any;
-  cachedOther: any;
-  cachedType: any;
-  total: any;
-  firstRun: any;
-  timeout: any;
-  // history: any;
-  action: any;
+  options: any;
 
   constructor(ops) {
+    this.options = ops;
     this.el = ops.el;
-
-    this.url = this.el.dataset.url;
-
+    this.url = ops.url;
     this.minimumLength = ops.minimumLength || 2;
-    this.labelKey = ops.labelKey || "label";
-    this.idKey = ops.idKey || "id";
-    this.cache = ops.cache || false;
-    this.reorder = ops.reorder || false;
-    this.disableFilter = ops.disableFilter || false;
-    this.skipClearFocus = ops.skipClearFocus;
 
-    this.selectedIndex = 0;
-    this.savedInput = "";
     this.isOpen = false;
     this.isLoading = false;
     this.isError = false;
-    this.xhr = null;
-
-    this.results = [];
-    this.filteredResults = [];
-    this.cachedResults = [];
     this.isEmpty = true;
-    this.currentSearch = '';
-    this.currentPrefix = '';
-    this.xhrCounter = 0;
-    this.cachedId = null;
-    this.cachedLabel = '';
-    this.cachedOther = '';
-    this.cachedType = '';
+    
+    this.results = [];    
+    this.selectedIndex = 0;
+    this.savedInput = "";
     this.total = 0;
-    this.firstRun = true;
-    this.timeout = '';
 
     this.els = {
       input: this.el.querySelector(`.${css.input}`),
-      hidden: this.el.querySelector(`.${css.hidden}`),
       suggestions: this.el.querySelector(`.${css.suggestions}`),
       clear: this.el.querySelector(`.${css.clear}`),
       suggested: this.el.querySelectorAll(`.${css.link}`),
-      title: this.el.querySelector(`.${css.title}`)
     };
 
     this.labels = {
       empty: "No results msg",
-      error: "Error msg"
+      error: "There was an unknown error"
     };
-
-    // this.history = this.el.getAttribute('data-history');
-    this.action = ops.action;
 
     this.handleOutsideClick = this.handleOutsideClick.bind(this);
     this.handleFocus = this.handleFocus.bind(this);
@@ -115,8 +76,8 @@ export default class Autocomplete {
     this.handleClear = this.handleClear.bind(this);
     this.handleSuggestionClick = this.handleSuggestionClick.bind(this);
 
-    // reset this value as ie/edge retain it sometimes
-    this.els.input.value = '';
+    //debounce the api request to prevent accessive calls
+    this.getResults = debounce(this.getResults.bind(this), 300);
   }
 
   bind() {
@@ -137,9 +98,9 @@ export default class Autocomplete {
   }
 
   bindSuggestions() {
-    this.els.suggestions
-      .querySelectorAll(`.${css.link}`)
-      .forEach(el => el.addEventListener('click', this.handleSuggestionClick));
+    this.els.suggestions.querySelectorAll(`.${css.link}`).forEach(el => {
+      el.addEventListener('click', this.handleSuggestionClick);
+    });
   }
 
   lock() {
@@ -169,13 +130,7 @@ export default class Autocomplete {
     }
   }
 
-  handleClear(e) {
-    // this.cachedId = null;
-    // this.cachedLabel = null;
-    // this.cachedOther = null;
-    // this.cachedType = null;
-    // this.clearId();
-
+  handleClear() {
     this.unlock();
     this.els.input.value = "";
     this.els.input.focus();
@@ -189,153 +144,56 @@ export default class Autocomplete {
     e.preventDefault();
 
     const link = e.currentTarget;
-    const label = link.dataset.label;
-    const id = link.dataset.id;
-    const other = link.dataset.other;
-    const type = link.dataset.type;
+    const id = link.getAttribute("data-id");
 
-    this.setId(id, label, other, type);
-    this.setSuggestion(link);
+    this.selectedIndex = parseInt(id);
+    this.setItem();
     this.hideSuggestions();
   }
 
-  setId(id, label, other, type) {
-    if (id !== null) {
-      this.els.input.setAttribute('data-id', ''); // Needed for IE - dataset assignment polyfill only works if the attribute exists already
-      this.els.input.dataset.id = id;
+  setItem() {
+    const data = this.results[this.selectedIndex - 1];
 
-      // to hide validation on input after suggestion click
-      this.els.input.classList.remove('form-input--error');
-      const inputId = this.els.input.getAttribute('id');
-      const errorLabel = document.getElementById(`${inputId}_error`);
-
-      if (errorLabel) {
-        errorLabel.classList.remove('form-label--error--active');
-      }
-
-      // if we have a custom action, fire it
-      if (typeof this.action === 'function') {
-        this.action({
-          id,
-          label,
-          type,
-          other
-        });
-
-        this.lock();
-      } else {
-        if (this.skipClearFocus) {
-          this.lock();
-          // this.setFocus();
-        }
-      }
-
-      // this.addHistroy(id, label, other);
+    if(typeof this.options.onSelect === "function") {
+      this.options.onSelect(data);
     }
+
+    this.els.input.value = "";
+    this.checkClear();
   }
-
-  /*
-    add selected item to local storage key if set 
-  */
-  // addHistroy(id, label, other) {
-  //   if (this.history) {
-  //     let currentHistory = getItem(this.history) || [];
-  //     let exists = false;
-  //     let original = id.toString();
-
-  //     currentHistory.forEach(el => {
-  //       if (original.trim() === el.id.trim()) {
-  //         exists = true;
-  //       }
-  //     });
-
-  //     if (!exists) {
-  //       currentHistory.unshift({
-  //         id,
-  //         label,
-  //         other
-  //       });
-
-  //       setItem(this.history, currentHistory);
-  //     }
-  //   }
-  // }
-
-  // setFocus() {
-  //   const form = ancestor(this.el, 'form');
-  //   let el = this.el;
-  //   let submit = null;
-
-  //   while (el !== form && !submit) {
-  //     submit = el.parentNode.querySelector('[type="submit"]');
-  //     el = el.parentNode;
-  //   }
-
-  //   if (form) {
-  //     const formGroups = form.querySelectorAll('.form-group');
-  //     let siblingInput = null;
-  //     Array.prototype.forEach.call(formGroups, el => {
-  //       const match = el !== this.el.parentNode ? el : null;
-
-  //       if (match && match.classList.contains('form-group')) {
-  //         siblingInput = match.querySelector('input');
-  //       }
-  //     });
-
-  //     if (submit) {
-  //       submit.focus();
-  //     }
-
-  //     if (siblingInput) {
-  //       const isSiblingInputCompleted = siblingInput.getAttribute('data-id');
-
-  //       if (!isSiblingInputCompleted) {
-  //         siblingInput.focus();
-  //         return;
-  //       }
-  //     }
-  //   }
-  // }
 
   clearId() {
     this.els.input.removeAttribute('data-id');
   }
 
-  setSuggestion(link) {
-    const label = link.dataset.label;
-    this.els.input.value = unescape(label);
-    this.els.input.refresh();
+  setSuggestion() {
+    this.els.input.value = get(this.results[this.selectedIndex - 1], this.options.titleKey, "Title error");
   }
 
   showSuggestions() {
     this.selectedIndex = 0;
-    show(this.els.suggestions);
     this.els.suggestions.classList.add(css.suggestionsActive);
     this.els.suggestions.setAttribute('aria-hidden', false);
     this.isOpen = true;
+
     this.bindOutsideClick();
   }
 
   hideSuggestions() {
     this.removeOutsideClick();
 
-    this.cachedId = null;
-    this.cachedLabel = null;
-
     this.selectedIndex = 0;
     this.els.suggestions.scrollTop = 0;
-    hide(this.els.suggestions);
-    empty(this.els.suggestions);
     this.els.suggestions.classList.remove(css.suggestionsActive);
+    this.els.suggestions.innerHTML = "";
     this.els.suggestions.setAttribute('aria-hidden', true);
+
     this.isOpen = false;
   }
 
-  lookup() {
-    const query = this.getInput();
-
-    if (query.length >= this.minimumLength) {
+  getResults(query) {
       this.startLoading();
+      this.isError = false;
 
       const options = {
         method: 'get',
@@ -347,54 +205,37 @@ export default class Autocomplete {
 
       fetch(options.url, options)
         .then(response => {
+          if (response.status === 404 ) {
+            throw new Error("No results...");
+          }
           if (response.status > 200) {
-            throw new Error();
+            throw new Error("General errror");
           }
 
           return response.json();
         })
         .then(response => {
-          
-          
-          this.results = response.results;
-          // this.cachedResults = response.data ? response.data : response;
+          if(typeof this.options.handleResponse === "function") {
+            this.results = this.options.handleResponse(response);
+          }
+          else {
+            this.results = response.results;
+          }
+
           this.total = this.results.length;
           this.stopLoading();
           this.render();
-          this.isError = false;
-          this.firstRun = false;
         })
         .catch(error => {
           this.handleError(error);
         });
-    } else {
-      this.stopLoading();
-      this.resetResults();
-      this.hideSuggestions();
-    }
+
   }
-
-  // handleFilter() {
-  //   const query = this.getInput();
-
-  //   this.filteredResults = this.filterResults(
-  //     this.results,
-  //     query.toLowerCase()
-  //   );
-
-  //   this.total = this.filteredResults.length;
-  //   this.render();
-  // }
 
   handleError(error) {
     this.stopLoading();
     this.isError = true;
-    this.render();
-    console.dir(error);
-  }
-
-  handleResponse(response) {
-    return response.data;
+    this.renderError(error);
   }
 
   startLoading() {
@@ -408,78 +249,44 @@ export default class Autocomplete {
   }
 
   render() {
-    this.isEmpty = this.filteredResults.length === 0;
+    this.isEmpty = this.results.length === 0;
 
     if (!this.isEmpty && !this.isError) {
       this.renderResults();
-    } else {
-      if (!this.isLoading && this.isEmpty) {
-        this.renderNoResults();
-      }
-      if (!this.isLoading && this.isError) {
-        this.renderError();
-      }
+    } else if(!this.isLoading && this.isError) {
+      this.renderError("An error");
     }
   }
 
-  renderNoResults() {
-    const html = `<div class="${css.empty}">
-      <small>
-        ${this.labels.empty}
-      </small>
-    </div>`;
-
-    this.els.suggestions.innerHTML = html;
-    this.showSuggestions();
-  }
-
-  renderError() {
-    const html = `<div class='${css.error}'>
-      <small>
-        ${this.labels.error}
-      </small>
-    </div>`;
+  renderError(msg) {
+    const html = `<div class='${css.error}'>${msg}</div>`;
 
     this.els.suggestions.innerHTML = html;
     this.showSuggestions();
   }
 
   resultTemplate(data) {
-    return `<a href="#" class="${data.css.link}" data-id="${data.id
-      }" data-label="${escape(data.label)}" data->
-      <div class="typeahead__suggestions__line--1">
-        ${data.highlightedLabel} ${data.region}
-      </div>
-      <div class="typeahead__suggestions__line--2">
-        ${data.country}
-      </div>
-    </a>`;
+    return `<button data-id="${data.i + 1}" class="form-input__results__item">
+      ${data.title}${data.text ? ` - <em>${data.text}`:""}</em>
+    </button>`;
   }
 
   renderResults() {
-    let html = '';
-    let query = this.getInput();
+    const query = this.getInput();
+    let html = `<div class="${css.title}">Suggestions</div>`;
 
-    this.filteredResults.forEach(item => {
-      const id = item[this.idKey];
-      const port = item[this.labelKey];
-      const label = port;
-      const country = item.countryName;
-      const highlightedLabel = this.highlight(port, query);
-      const region = item.regionName ? `(${item.regionName})` : '';
+    this.results.forEach((item, i) => {
+      const title = get(item, this.options.titleKey, "Title error");
+      const text = get(item, this.options.textKey, "Text error");
 
       html += this.resultTemplate({
-        css,
-        label,
-        id,
-        highlightedLabel,
-        country,
-        region
-      });
+        i,
+        title: this.highlight(title, query),
+        text
+      })
     });
 
     this.els.suggestions.innerHTML = html;
-
     this.bindSuggestions();
     this.showSuggestions();
   }
@@ -529,11 +336,7 @@ export default class Autocomplete {
 
     if (activeLink) {
       this.els.suggestions.scrollTop = activeLink.offsetTop;
-
-      // issues with this in ie11 + edge
-      // activeLink.scrollIntoView({
-      //   block: 'nearest'
-      // });
+      activeLink.scrollIntoView();
     }
   }
 
@@ -547,13 +350,7 @@ export default class Autocomplete {
     ];
 
     selected.classList.add(css.linkActive);
-
-    this.cachedId = selected.dataset.id;
-    this.cachedLabel = selected.dataset.label;
-    this.cachedOther = selected.dataset.other;
-    this.cachedType = selected.dataset.type;
-
-    this.setSuggestion(selected);
+    this.setSuggestion();
   }
 
   revert() {
@@ -595,17 +392,17 @@ export default class Autocomplete {
         return false;
       }
       if (e.keyCode === keys.enter) {
-        if (this.cachedId !== null) {
+        if(this.selectedIndex !== 0) {
+          this.setItem();
           this.removeOutsideClick();
-          this.setId(this.cachedId, this.cachedLabel, this.cachedOther, this.cachedType);
           this.hideSuggestions();
         }
+
         return false;
       }
     }
 
     this.savedInput = e.target.value;
-
     this.decision();
   }
 
@@ -624,82 +421,18 @@ export default class Autocomplete {
 
   resetResults() {
     this.results = [];
-    this.filteredResults = [];
-    this.currentPrefix = '';
     this.total = 0;
   }
 
   decision() {
-    this.lookup();
+    const query = this.getInput();
 
-    // if (this.getInput().length > 0) {
-    //   this.lookup();
-    // } else {
-    //   this.savedInput = '';
-    //   if (this.history && getItem(this.history)) {
-    //     this.showHistory();
-    //   } else if (this.els.suggested.length > 0) {
-    //     this.showPopular();
-    //   } else {
-    //     this.hideSuggestions();
-    //   }
-    // }
+    if (query.length >= this.minimumLength) {
+      this.getResults(query);
+    } else {
+      this.stopLoading();
+      this.resetResults();
+      this.hideSuggestions();
+    }
   }
-
-  // showPopular() {
-  //   let html = '';
-
-  //   if (this.els.title) {
-  //     html += `<div class="typeahead__title">${this.els.title.innerText}</div>`;
-  //   }
-
-  //   this.total = this.els.suggested.length;
-
-  //   this.els.suggested.forEach(item => {
-  //     const label = item.getAttribute('data-label');
-  //     const id = item.getAttribute('data-id');
-  //     const type = item.getAttribute('data-type');
-
-  //     html += `<a href="#" class="${css.link
-  //       }" data-id="${id}" data-label="${label}" data-type="${type}">
-  //       <div class="typeahead__suggestions__line--1">
-  //         ${label}
-  //       </div>
-  //     </a>`;
-  //   });
-
-  //   this.els.suggestions.innerHTML = html;
-  //   this.isEmpty = false;
-
-  //   this.bindSuggestions();
-  //   this.showSuggestions();
-  // }
-
-  // showHistory() {
-  //   let html = `<div class="typeahead__title">${this.el.getAttribute(
-  //     'data-history-title'
-  //   )}</div>`;
-  //   const history = getItem(this.history).slice(0, 5);
-
-  //   this.total = history.length;
-
-  //   history.forEach(item => {
-  //     html += `<a href="#" class="${css.link}" data-id="${item.id
-  //       }" data-label="${item.label}">
-  //       <div class="typeahead__suggestions__line--1">
-  //         ${unescape(item.label)}
-  //       </div>
-  //     </a>`;
-  //   });
-
-  //   this.postShowHistory(html);
-  // }
-
-  // postShowHistory(html) {
-  //   this.els.suggestions.innerHTML = html;
-  //   this.isEmpty = false;
-
-  //   this.bindSuggestions();
-  //   this.showSuggestions();
-  // }
 }
