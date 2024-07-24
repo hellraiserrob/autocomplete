@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>autocomplete</title>
+
+  <script type="module" src="/src/index.ts" defer></script>
+</head>
+
+<body>
+  <div id="app">
+    <div class="header">
+      <img src="/images/logo.svg" width="70" alt="" />
+      <h1 class="mb10">autocomplete</h1>
+      <h2>An autocomplete library component</h2>
+    </div>
+
+    <form action="" class="form" autocomplete="off">
+      <label class="form-label" for="query">Country Lookup</label>
+      <div class="form-input autocomplete">
+        <svg class="form-input__icon" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M23.809 21.646l-6.205-6.205c1.167-1.605 1.857-3.579 1.857-5.711 0-5.365-4.365-9.73-9.731-9.73-5.365 0-9.73 4.365-9.73 9.73 0 5.366 4.365 9.73 9.73 9.73 2.034 0 3.923-.627 5.487-1.698l6.238 6.238 2.354-2.354zm-20.955-11.916c0-3.792 3.085-6.877 6.877-6.877s6.877 3.085 6.877 6.877-3.085 6.877-6.877 6.877c-3.793 0-6.877-3.085-6.877-6.877z"/></svg>
+        <input class="form-input__input" type="text" value="" id="query" />
+        
+        <svg class="form-input__loading" xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M0 11c.511-6.158 5.685-11 12-11s11.489 4.842 12 11h-2.009c-.506-5.046-4.793-9-9.991-9s-9.485 3.954-9.991 9h-2.009zm21.991 2c-.506 5.046-4.793 9-9.991 9s-9.485-3.954-9.991-9h-2.009c.511 6.158 5.685 11 12 11s11.489-4.842 12-11h-2.009z"/></svg>
+        <button class="form-input__clear" type="button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24"><path d="M23.954 21.03l-9.184-9.095 9.092-9.174-2.832-2.807-9.09 9.179-9.176-9.088-2.81 2.81 9.186 9.105-9.095 9.184 2.81 2.81 9.112-9.192 9.18 9.1z"/></svg>
+        </button>
+        <div class="form-input__results"></div>
+      </div>
+      <div class="form-hint">Enter two or more characters...</div>
+    </form>
+
+    <div class="tags"></div>
+  </div>
+</body>
+
+</html>

@@ -1,0 +1,291 @@
+* {
+  box-sizing: border-box;
+}
+
+body {
+  font-size: 18px;
+  line-height: 1.2em;
+  color: #333;
+  background: #efefef;
+}
+
+html, body {
+  overflow-x: hidden;
+  margin: 0;
+  padding: 0;
+} 
+
+body,
+button,
+input {
+  font-family: -apple-system, BlinkMacSystemFont, avenir next, avenir,
+    segoe ui, helvetica neue, helvetica, Cantarell, Ubuntu, roboto, noto,
+    arial, sans-serif;
+}
+
+h1, h2, h3, h4, h5 {
+  font-weight: normal;
+  font-size: 15px;
+  margin: 0;
+  padding: 0;
+}
+
+h1 {
+  font-size: 30px;
+  line-height: 35px;
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+h2 {
+  font-size: 20px;
+  font-weight: 400;
+  margin-bottom: 4px;
+}
+
+h3 {
+  color: #666;
+  font-size: 14px;
+}
+
+a {
+  color: blue;
+
+  &:focus {
+    outline: black 2px solid;
+  }
+}
+
+.header {
+  position: relative;
+  padding-left: 90px;
+  display: none;
+
+  img {
+    position: absolute;
+    top: 5px;
+    left: 0;
+  }
+}
+
+.text-center {
+  text-align: center;
+}
+
+.p20 {
+  padding: 20px;
+}
+
+.p50 {
+  padding: 50px;
+}
+
+.mb10 {
+  margin-bottom: 10px;
+}
+
+.mb20 {
+  margin-bottom: 20px;
+}
+
+.mb30 {
+  margin-bottom: 30px;
+}
+
+.mb40 {
+  margin-bottom: 40px;
+}
+.mb50 {
+  margin-bottom: 50px;
+}
+
+#app {
+  height: 100vh;
+  align-items: center;
+  align-content: center;
+  padding: 0 16px;
+}
+
+.form, .tags {
+  max-width: 800px;
+  margin: 0 auto;
+}
+
+.form-label,
+.form-hint {
+  margin: 0 0 8px 0;
+  padding-left: 8px;
+  font-size: 14px;
+  color: #999;
+  display: block;
+}
+
+.form-label {
+  margin: 0 0 8px 0;
+  text-transform: uppercase;
+}
+
+.form-input {
+  margin: 0 0 8px 0;
+  position: relative;
+  transform: translate(0, 0, 0);
+  
+  svg {
+    width: 18px;
+  }
+
+  &__input {
+    width: 100%;
+    border: 0;
+    border-radius: 4px;
+    padding: 12px 10px 12px 44px;
+    font-size: 25px;
+    color: #333;
+
+    &:focus {
+      outline: none;
+    }
+  }
+
+  &__icon {
+    position: absolute;
+    top: 16px;
+    left: 15px;
+
+    path {
+      fill: #999;
+    }
+  }
+
+  &__loading {
+    position: absolute;
+    top: 16px;
+    right: 50px;
+    animation: rotate 1s infinite;
+    display: none;
+
+    path {
+      fill: #666;
+    }
+  }
+
+  &--loading &__loading {
+    display: block;
+  }
+
+  &__clear {
+    position: absolute;
+    top: 16px;
+    right: 18px;
+    border: 0;
+    background: none;
+    padding: 0 5px;
+    cursor: pointer;
+    border-radius: 2px;
+    transition: background ease 0.2s;
+    display: none;
+    
+    &--active {
+      display: block;
+    }
+
+    &:hover {
+      background-color: #efefef;
+    }
+
+    svg {
+      width: 12px;
+    }
+
+    path {
+      fill: #999;
+    }
+  }
+
+  &__results {
+    position: absolute;
+    top: 100%;
+    left: 0;
+    right: 0;
+    background: #fff;
+    padding-bottom: 20px;
+    display: none;
+    max-height: 300px;
+    overflow: auto;
+
+    &--active {
+      display: block;
+    }
+
+    &__msg {
+      padding: 8px 10px 8px 44px;
+      font-size: 14px;
+      // color: lightcoral
+    }
+
+    &__title {
+      padding: 8px 10px 8px 44px;
+      font-size: 14px;
+      font-weight: 600;
+      // border-bottom: 1px solid #ddd
+    }
+
+    &__item {
+      border: 0;
+      background: none;
+      padding: 8px 10px 8px 44px;
+      display: block;
+      width: 100%;
+      cursor: pointer;
+      transition: background ease 0.2s;
+      text-align: left;
+      font-size: 14px;
+      color: #333;
+      text-decoration: none;
+
+      &--active, &:hover {
+        background-color: #efefef78;
+      }
+
+      em {
+        color: #999;
+      }
+
+      &__highlight {
+        font-weight: 600;
+      }
+    }
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+
+.tags {
+  margin-top: 20px;
+  display: flex;
+
+  &:empty {
+    display: none;
+  }
+  
+  .tag {
+    font-size: 12px;
+    border: 1px solid #ccc;
+    // background-color: blue;
+    color: #666;
+    padding: 0 8px;
+    border-radius: 12px;
+  }
+
+  .tag + .tag {
+    margin-left: 8px;
+  }
+}

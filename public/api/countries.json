@@ -1,0 +1,11 @@
+{
+  "results": [{
+    "title": "Country 1",
+    "text": "Some text 1",
+    "url": "/country/1"
+  }, {
+    "title": "Country 2",
+    "text": "Some text 2",
+    "url": "/country/2" 
+  }]
+}

@@ -1,0 +1,19 @@
+{
+  "name": "autocomplete",
+  "version": "1.0.0",
+  "description": "",
+  "main": "vite.config.js",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 0.0.0.0",
+    "build": "vite build",
+    "preview": "vite preview"
+  },
+  "author": "",
+  "license": "ISC",
+  "devDependencies": {
+    "lodash": "^4.17.21",
+    "sass": "^1.77.6",
+    "vite": "^5.3.2"
+  }
+}
