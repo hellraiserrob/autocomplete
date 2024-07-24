@@ -134,6 +134,7 @@ export default class Autocomplete {
     this.unlock();
     this.els.input.value = "";
     this.els.input.focus();
+    this.checkClear();
   }
 
   getInput() {
