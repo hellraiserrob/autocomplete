@@ -5,4 +5,5 @@ export interface Options {
   textKey: String,
   handleResponse: Function,
   onSelect: Function,
+  minimumLength?: number
 }

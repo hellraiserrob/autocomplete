@@ -28,6 +28,7 @@ Options and usage notes
 | textKey    | Gets the primary item text value from your results object, uses [lodash get](https://lodash.com/docs/4.17.15#get) to reach deep into the object if required | String |
 | handleResponse    | Your function to return the autocomplete results array from the api response  | Function |
 | onSelect    | Your function to perform a custom action when an autocomplete item is selected, gets passed the entire item object as an argument  | Function |
+| minimumLength    | The minimum query length before api called  | Number |
 
 #### Example usage
 

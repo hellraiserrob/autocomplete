@@ -1,5 +1,7 @@
 /**
  * autocomplete library class
+ * @author Rob Phillips 
+ * https://github.com/hellraiserrob/autocomplete
  */
 
 // lodash utilities for debouncing requests and going deep into objects with dot notation
@@ -50,17 +52,24 @@ export default class Autocomplete {
     this.options = ops;
     this.el = ops.el;
     this.url = ops.url;
+    // the minimum query length before api called
     this.minimumLength = ops.minimumLength || 2;
 
+    // state flags
     this.isOpen = false;
     this.isLoading = false;
     this.isError = false;
     this.isEmpty = true;
 
+    // the last successful search query
     this.previousSearch = "";
+    // results array
     this.results = [];
+    // index of selected item
     this.selectedIndex = 0;
+    // saved query
     this.savedInput = "";
+    // amount of results
     this.total = 0;
 
     // cached html elements
@@ -71,11 +80,14 @@ export default class Autocomplete {
       suggested: this.el.querySelectorAll(`.${css.link}`),
     };
 
+    // common labels
     this.labels = {
       empty: "No results were found...",
-      error: "There was an unexpected error..."
+      error: "There was an unexpected error...",
+      title: "Suggestions"
     };
 
+    // bind context to event functions
     this.handleOutsideClick = this.handleOutsideClick.bind(this);
     this.handleFocus = this.handleFocus.bind(this);
     this.handleKeyup = this.handleKeyup.bind(this);
@@ -87,6 +99,9 @@ export default class Autocomplete {
     this.getResults = debounce(this.getResults.bind(this), 300);
   }
 
+  /** 
+   * event bindings
+   */
   bind() {
     this.els.input.addEventListener('focus', this.handleFocus);
     this.els.input.addEventListener('keyup', this.handleKeyup);
@@ -110,12 +125,79 @@ export default class Autocomplete {
     });
   }
 
-  lock() {
-    this.els.input.setAttribute('disabled', 'disabled');
+  // x clear the current query
+  handleClear() {
+    this.unlock();
+    this.els.input.value = "";
+    this.els.input.focus();
+    this.checkClear();
   }
 
-  unlock() {
-    this.els.input.removeAttribute('disabled');
+  // mouse click on search item
+  handleSuggestionClick(e) {
+    e.preventDefault();
+
+    const link = e.currentTarget;
+    const id = link.getAttribute("data-id");
+
+    this.selectedIndex = parseInt(id);
+    this.setItem();
+    this.hideSuggestions();
+  }
+
+  // prevent some default input behaviours with some keyboard buttons
+  // e.g up/down key moves cursor by default
+  handleKeydown(e) {
+    if (
+      e.keyCode === keys.enter &&
+      this.els.suggestions.classList.contains(`${css.suggestionsActive}`)
+    ) {
+      e.preventDefault();
+    }
+    if (
+      e.keyCode === keys.up ||
+      e.keyCode === keys.down ||
+      e.keyCode === keys.enter
+    ) {
+      return false;
+    }
+  }
+
+  // handles up/down/enter/escape or continues to decision
+  handleKeyup(e) {
+    this.checkClear();
+
+    if (e.keyCode === keys.up) {
+      this.previous();
+      return false;
+    }
+
+    if (this.isOpen && !this.isEmpty) {
+      if (e.keyCode === keys.escape) {
+        this.revert();
+        return false;
+      }
+      if (e.keyCode === keys.down) {
+        this.next();
+        return false;
+      }
+      if (e.keyCode === keys.enter) {
+        if (this.selectedIndex !== 0) {
+          this.setItem();
+          this.removeOutsideClick();
+          this.hideSuggestions();
+        }
+
+        return false;
+      }
+    }
+
+    this.savedInput = e.target.value;
+    this.decision();
+  }
+
+  handleFocus() {
+    this.decision();
   }
 
   handleOutsideClick(e) {
@@ -137,28 +219,23 @@ export default class Autocomplete {
     }
   }
 
-  handleClear() {
-    this.unlock();
-    this.els.input.value = "";
-    this.els.input.focus();
-    this.checkClear();
+  /**
+   * general functions
+   */
+
+  lock() {
+    this.els.input.setAttribute('disabled', 'disabled');
+  }
+
+  unlock() {
+    this.els.input.removeAttribute('disabled');
   }
 
   getInput() {
     return this.els.input.value.trim();
   }
 
-  handleSuggestionClick(e) {
-    e.preventDefault();
-
-    const link = e.currentTarget;
-    const id = link.getAttribute("data-id");
-
-    this.selectedIndex = parseInt(id);
-    this.setItem();
-    this.hideSuggestions();
-  }
-
+  // when an item is "selected"
   setItem() {
     const data = this.results[this.selectedIndex - 1];
 
@@ -170,10 +247,7 @@ export default class Autocomplete {
     this.checkClear();
   }
 
-  clearId() {
-    this.els.input.removeAttribute('data-id');
-  }
-
+  // sets the temporary query
   setSuggestion() {
     this.els.input.value = get(this.results[this.selectedIndex - 1], this.options.titleKey, "Title error");
   }
@@ -199,6 +273,60 @@ export default class Autocomplete {
     this.isOpen = false;
   }
 
+  startLoading() {
+    this.el.classList.add(css.loading);
+    this.isLoading = true;
+  }
+
+  stopLoading() {
+    this.el.classList.remove(css.loading);
+    this.isLoading = false;
+  }
+
+  revert() {
+    this.els.input.value = this.savedInput;
+    this.hideSuggestions();
+  }
+
+  checkClear() {
+    if (this.els.input.value.length > 0) {
+      this.els.clear.classList.add(css.clearActive);
+    }
+    else {
+      this.els.clear.classList.remove(css.clearActive);
+    }
+  }
+
+  resetResults() {
+    this.previousSearch = "";
+    this.results = [];
+    this.total = 0;
+  }
+
+  // what route to take based on query criteria, length, previous search, etc.
+  decision() {
+    const query = this.getInput();
+
+    if (query.length >= this.minimumLength) {
+      // only make a call if the query is different
+      if (query !== this.previousSearch) {
+        this.getResults(query);
+      }
+      else {
+        this.render();
+      }
+
+    } else {
+      this.stopLoading();
+      this.resetResults();
+      this.hideSuggestions();
+    }
+  }
+
+  /**
+   * api request
+   */
+
   getResults(query) {
     this.startLoading();
     this.isError = false;
@@ -213,6 +341,7 @@ export default class Autocomplete {
 
     fetch(options.url, options)
       .then(response => {
+        // error handling responses
         if (response.status === 404) {
           throw new Error(this.labels.empty);
         }
@@ -223,10 +352,12 @@ export default class Autocomplete {
         return response.json();
       })
       .then(response => {
+        // use the user provided callback to parse api response, could be anything!
         if (typeof this.options.handleResponse === "function") {
           this.results = this.options.handleResponse(response);
         }
         else {
+          // generic fallback
           this.results = response.results;
         }
 
@@ -247,25 +378,20 @@ export default class Autocomplete {
     this.renderError(error);
   }
 
-  startLoading() {
-    this.el.classList.add(css.loading);
-    this.isLoading = true;
-  }
 
-  stopLoading() {
-    this.el.classList.remove(css.loading);
-    this.isLoading = false;
-  }
+  /**
+   * rendering functions
+   */
 
   render() {
     this.isEmpty = this.results.length === 0;
 
     if (!this.isEmpty && !this.isError) {
       this.renderResults();
-    } 
+    }
     else if (!this.isLoading && this.isEmpty) {
       this.renderError(this.els.empty);
-    } 
+    }
     else if (!this.isLoading && this.isError) {
       this.renderError(this.els.error);
     }
@@ -286,7 +412,7 @@ export default class Autocomplete {
 
   renderResults() {
     const query = this.getInput();
-    let html = `<div class="${css.title}">Suggestions</div>`;
+    let html = `<div class="${css.title}">${this.labels.title}</div>`;
 
     this.results.forEach((item, i) => {
       const title = get(item, this.options.titleKey, "Title error");
@@ -342,6 +468,7 @@ export default class Autocomplete {
     this.updateSelected();
   }
 
+  // scrolls the results div which has a max height
   updateScroll() {
     const activeLink = this.els.suggestions.querySelector(
       `.${css.link}:nth-child(${this.selectedIndex})`
@@ -367,96 +494,5 @@ export default class Autocomplete {
 
     selected.classList.add(css.linkActive);
     this.setSuggestion();
-  }
-
-  revert() {
-    this.els.input.value = this.savedInput;
-    this.hideSuggestions();
-  }
-
-  handleKeydown(e) {
-    if (
-      e.keyCode === keys.enter &&
-      this.els.suggestions.classList.contains(`${css.suggestionsActive}`)
-    ) {
-      e.preventDefault();
-    }
-    if (
-      e.keyCode === keys.up ||
-      e.keyCode === keys.down ||
-      e.keyCode === keys.enter
-    ) {
-      return false;
-    }
-  }
-
-  handleKeyup(e) {
-    this.checkClear();
-
-    if (e.keyCode === keys.up) {
-      this.previous();
-      return false;
-    }
-
-    if (this.isOpen && !this.isEmpty) {
-      if (e.keyCode === keys.escape) {
-        this.revert();
-        return false;
-      }
-      if (e.keyCode === keys.down) {
-        this.next();
-        return false;
-      }
-      if (e.keyCode === keys.enter) {
-        if (this.selectedIndex !== 0) {
-          this.setItem();
-          this.removeOutsideClick();
-          this.hideSuggestions();
-        }
-
-        return false;
-      }
-    }
-
-    this.savedInput = e.target.value;
-    this.decision();
-  }
-
-  handleFocus() {
-    this.decision();
-  }
-
-  checkClear() {
-    if (this.els.input.value.length > 0) {
-      this.els.clear.classList.add(css.clearActive);
-    }
-    else {
-      this.els.clear.classList.remove(css.clearActive);
-    }
-  }
-
-  resetResults() {
-    this.previousSearch = "";
-    this.results = [];
-    this.total = 0;
-  }
-
-  decision() {
-    const query = this.getInput();
-
-    if (query.length >= this.minimumLength) {
-      // only make a call if the query is different
-      if(query !== this.previousSearch) {
-        this.getResults(query);
-      }
-      else {
-        this.render();
-      }
-
-    } else {
-      this.stopLoading();
-      this.resetResults();
-      this.hideSuggestions();
-    }
   }
 }
