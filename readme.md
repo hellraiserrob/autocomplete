@@ -4,6 +4,10 @@
 # Autocomplete
 A flexible and customisable autocomplete/typeahead library for you to use in your projects or use as a learning resource.
 
+[**Launch demo**](https://hellraiserrob.github.io/autocomplete/)
+
+----
+
 ### Features
 
 - Lightweight & Responsive
