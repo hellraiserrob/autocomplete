@@ -271,18 +271,36 @@ a {
 .tags {
   margin-top: 20px;
   display: flex;
-
-  &:empty {
-    display: none;
-  }
+  height: 20px;
   
   .tag {
     font-size: 12px;
     border: 1px solid #ccc;
-    // background-color: blue;
+    background-color: transparent;
     color: #666;
-    padding: 0 8px;
+    padding: 2px 8px;
     border-radius: 12px;
+    display: flex;
+    align-items: center;
+    cursor: pointer;
+
+    svg {
+      width: 8px;
+      margin: 0 0 0 5px;
+      // display: inline-block;
+
+      path {
+        fill: #999;
+      }
+    }
+    
+    &:hover {
+      border-color: #666;
+    }
+    
+    &:hover path {
+      fill: #666;
+    }
   }
 
   .tag + .tag {
