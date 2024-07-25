@@ -1,5 +1,6 @@
 import "./main.scss";
 import Autocomplete from "./autocomplete";
+import { Options } from "./interfaces"
 
 const autocomplete = document.querySelectorAll<HTMLElement>(`.autocomplete`);
 const forms = document.querySelectorAll<HTMLElement>(`form`);
@@ -13,7 +14,7 @@ forms.forEach(form => {
 })
 
 autocomplete.forEach(el => {
-  const options = {
+  const options:Options = {
     el,
     url: "https://restcountries.com/v3.1/name/{value}",
     handleResponse: (response) => {
