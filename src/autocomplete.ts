@@ -1,11 +1,15 @@
 /**
- * autocomplete
+ * autocomplete library class
  */
 
+// lodash utilities for debouncing requests and going deep into objects with dot notation
 import debounce from "lodash/debounce";
 import get from "lodash/get";
+
+// constants for keyboard buttons
 import keys from "./keys.ts";
 
+// common css classes
 const css = {
   input: "form-input__input",
   suggestions: "form-input__results",
@@ -28,12 +32,13 @@ export default class Autocomplete {
   els: any;
   titleKey: string;
   textKey: string;
-  
+
   isOpen: boolean;
   isLoading: boolean;
   isError: boolean;
   isEmpty: boolean;
-  
+
+  previousSearch: string;
   results: any
   total: number;
   selectedIndex: number;
@@ -51,12 +56,14 @@ export default class Autocomplete {
     this.isLoading = false;
     this.isError = false;
     this.isEmpty = true;
-    
-    this.results = [];    
+
+    this.previousSearch = "";
+    this.results = [];
     this.selectedIndex = 0;
     this.savedInput = "";
     this.total = 0;
 
+    // cached html elements
     this.els = {
       input: this.el.querySelector(`.${css.input}`),
       suggestions: this.el.querySelector(`.${css.suggestions}`),
@@ -65,8 +72,8 @@ export default class Autocomplete {
     };
 
     this.labels = {
-      empty: "No results msg",
-      error: "There was an unknown error"
+      empty: "No results were found...",
+      error: "There was an unexpected error..."
     };
 
     this.handleOutsideClick = this.handleOutsideClick.bind(this);
@@ -155,7 +162,7 @@ export default class Autocomplete {
   setItem() {
     const data = this.results[this.selectedIndex - 1];
 
-    if(typeof this.options.onSelect === "function") {
+    if (typeof this.options.onSelect === "function") {
       this.options.onSelect(data);
     }
 
@@ -193,43 +200,44 @@ export default class Autocomplete {
   }
 
   getResults(query) {
-      this.startLoading();
-      this.isError = false;
+    this.startLoading();
+    this.isError = false;
 
-      const options = {
-        method: 'get',
-        url: this.url.replace('{value}', query),
-        headers: {
-          Accept: 'application/json'
+    const options = {
+      method: 'get',
+      url: this.url.replace('{value}', query),
+      headers: {
+        Accept: 'application/json'
+      }
+    };
+
+    fetch(options.url, options)
+      .then(response => {
+        if (response.status === 404) {
+          throw new Error(this.labels.empty);
         }
-      };
+        if (response.status > 200) {
+          throw new Error(this.labels.error);
+        }
 
-      fetch(options.url, options)
-        .then(response => {
-          if (response.status === 404 ) {
-            throw new Error("No results...");
-          }
-          if (response.status > 200) {
-            throw new Error("General errror");
-          }
+        return response.json();
+      })
+      .then(response => {
+        if (typeof this.options.handleResponse === "function") {
+          this.results = this.options.handleResponse(response);
+        }
+        else {
+          this.results = response.results;
+        }
 
-          return response.json();
-        })
-        .then(response => {
-          if(typeof this.options.handleResponse === "function") {
-            this.results = this.options.handleResponse(response);
-          }
-          else {
-            this.results = response.results;
-          }
-
-          this.total = this.results.length;
-          this.stopLoading();
-          this.render();
-        })
-        .catch(error => {
-          this.handleError(error);
-        });
+        this.previousSearch = query;
+        this.total = this.results.length;
+        this.stopLoading();
+        this.render();
+      })
+      .catch(error => {
+        this.handleError(error);
+      });
 
   }
 
@@ -254,8 +262,12 @@ export default class Autocomplete {
 
     if (!this.isEmpty && !this.isError) {
       this.renderResults();
-    } else if(!this.isLoading && this.isError) {
-      this.renderError("An error");
+    } 
+    else if (!this.isLoading && this.isEmpty) {
+      this.renderError(this.els.empty);
+    } 
+    else if (!this.isLoading && this.isError) {
+      this.renderError(this.els.error);
     }
   }
 
@@ -268,7 +280,7 @@ export default class Autocomplete {
 
   resultTemplate(data) {
     return `<button data-id="${data.i + 1}" class="form-input__results__item">
-      ${data.title}${data.text ? ` - <em>${data.text}`:""}</em>
+      ${data.title}${data.text ? ` - <em>${data.text}` : ""}</em>
     </button>`;
   }
 
@@ -337,7 +349,10 @@ export default class Autocomplete {
 
     if (activeLink) {
       this.els.suggestions.scrollTop = activeLink.offsetTop;
-      activeLink.scrollIntoView();
+      activeLink.scrollIntoView({
+        behavior: "smooth",
+        block: "nearest"
+      });
     }
   }
 
@@ -393,7 +408,7 @@ export default class Autocomplete {
         return false;
       }
       if (e.keyCode === keys.enter) {
-        if(this.selectedIndex !== 0) {
+        if (this.selectedIndex !== 0) {
           this.setItem();
           this.removeOutsideClick();
           this.hideSuggestions();
@@ -421,6 +436,7 @@ export default class Autocomplete {
   }
 
   resetResults() {
+    this.previousSearch = "";
     this.results = [];
     this.total = 0;
   }
@@ -429,7 +445,14 @@ export default class Autocomplete {
     const query = this.getInput();
 
     if (query.length >= this.minimumLength) {
-      this.getResults(query);
+      // only make a call if the query is different
+      if(query !== this.previousSearch) {
+        this.getResults(query);
+      }
+      else {
+        this.render();
+      }
+
     } else {
       this.stopLoading();
       this.resetResults();
